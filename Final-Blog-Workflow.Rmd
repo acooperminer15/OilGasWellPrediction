@@ -1,0 +1,628 @@
+---
+title: "Predictive Analytics in US Shale Production Forecasting"
+date: '`r format(Sys.time(), "%B, %Y")`'
+author: Andrew Cooper, Regis University, MS Data Science
+output: 
+  flexdashboard::flex_dashboard:
+    theme: bootstrap
+    orientation: rows
+    vertical_layout: scroll
+---
+
+Analysis {data-navmenu="Intro"}
+===================================== 
+
+### Project Introduction
+
+**Background** 
+
+For my project, I decided to focus my efforts on better understanding the oil and gas industry's "shale" well, which utilizes cutting edge engineering processes to generate large volumes of liquids. One of the more critical business practices in the energy sector is to be able to forecast or predict whether or not an oil and gas well when drilled will produce a significant amount of oil and in respect generate cash flow positive results. While the majority of oil and gas producers like BP, ExxonMobil, Shell, and Chevron have historically viewed this problem as a geological one, recently with the massive collection of historical well records big data has started to look at forecasting what the well's initial production (IP) rate would look like given a wide variety of decisions that can be made by the producer.
+
+While geology does matter and where the oil and gas well is drilled with respect to how "good" the rock quality is, utilizing big data and generating unique well features to forecast whether a well will come online with a poor, average, or good IP rate will be the new approach, as many producers are beginning to hire less geoscientists and instead scale up their data science departments. For this project I am looking to acquire a large sample size of different oil and gas well's overall production results as well as many variables describing things like when they were drilled, who the producer was, what depth the well was drilled to, etc. Along with acquiring this data for different states (Texas, Colorado, New Mexico, North Dakota), I was given specifications for what the JP Morgan Commodity Research Group looks for when they are deciding in which well class they are looking to invest capital into, as certain IP ranges correspond to their definition of "investable" versus "non-investable". With this idea, I will be looking to apply machine learning to predict this well performance classification.
+
+**Workflow Steps**
+
+For this project I will be focused on the following workflow steps:
+
+1) Obtain Data - this section will be focused on analyzing different types of SQL queries to pull in the data that has been saved into different tables.
+
+2) Process Data - here we will take the necessary steps to clean up any of the variables and prepare the database to be explored further.
+
+3) Exploratory Data Analysis - after the data has been brought in and processed accordingly we will then start to build an exploratory data analysis report where we can analyze metrics like missing data, numeric distributions, outlier issues, etc.
+
+4) Feature Engineering - while this is one of the more overlooked stages of the data science workflow, we will take some time to research if there are any new variables we can generate that will be valuable in predicting the well's outcome.
+
+5) Model Building - after the data has been prepped and split into a test & train subset, we will attempt to predict whether a well is investable or not by applying a few different leading edge algorithms to compare against a more standard model like logistic regression.
+
+6) Analysis | Insights - we will wrap up the project by looking at different model accuracy metrics, along with choosing the best performing model to apply to the test subset and compare the predicted results against actuals.
+
+**Project Goal | Oil & Gas Introduction**
+
+Oil and gas wells have been drilled in the US since the mid 1850s, as they have continually been one of the better asset returns for investors since the commodity market really became a critical part of the economy. Investment companies or "producers" usually invest a significant amount of capital upfront to drill and "frac" the well, which allows fluids and specially "oil" to flow to the surface. The first indicator on how the oil and gas well will perform over its lifetime is the well's "intial production" or IP rate, which measures the maximum observed monthly oil volume that was produced, as higher IP rates tend to point toward better investment returns over the next decade or so of that well's life. The chart on the right visually describes what we need to identify as the well's IP rate for this well investment predication problem. Now that we have an idea on what metric we are looking to classify each oil and gas well by let's get into the machine learning worflow by starting with obtaining data through data acquistion. 
+
+###
+
+![Figure 1.](C:/Users/andrew_cooper/OneDrive - S&P Global/Pictures/Data-Practicum-Image1.png)
+
+Analysis {data-navmenu="Obtain-Data"}
+=====================================
+
+**Step 1: Drilling Data** 
+
+Now that we have a general idea of what we are trying to predict, let's take a look at the first step of any data science problem which is obtaining data. Before we take a look at any data, let's bring in the necessary R packages and functions that will be useful throughout the workflow:
+
+```{r chunk1, echo = TRUE}
+
+# LOAD NEEEDED PACKAGES, FUNCTIONS, COLOR SCHEMES ============================================================================
+library("caret")
+library("naivebayes")
+library("dplyr")
+library("ggplot2")
+library("psych")
+library("pscl")
+library("leaflet.extras")
+library("magrittr")
+library("plumber")
+library("geosphere")
+library("NISTunits")
+library("class")
+library("fields")
+library("randomcoloR")
+library("svMisc")
+library("timeDate")
+library("RODBC")
+library("dplyr")
+library("ggplot2")
+library("class")
+library("tidyr")
+library("aRpsDCA")
+library("ggExtra")
+library("gridExtra")
+library("RODBCext")
+library("MASS")
+library("ggpubr")
+library("grid")
+library("caret")
+library("fitdistrplus")
+library("tseries")
+library("forecast")
+library("mgcv")
+library("zoo")
+library("xlsx")
+library("EnvStats")
+library("maptools")  
+library("viridis")
+library("leaflet")
+library("aRpsDCA")
+library("nnet")
+library("RSNNS")
+library("svMisc")
+library("timeDate")
+library("RODBC")
+library("dplyr")
+library("ggplot2")
+library("class")
+library("ggmap")
+library("tidyr")
+library("aRpsDCA")
+library("ggExtra")
+library("gridExtra")
+library("RODBCext")
+library("MASS")
+library("ggpubr")
+library("grid")
+library("fitdistrplus")
+library("tseries")
+library("forecast")
+library("mgcv")
+library("lubridate")
+library("Hmisc")
+library("zoo")
+library("xlsx")
+library("EnvStats")
+library("maptools")  
+library("viridis")
+library("leaflet")
+library("jsonlite")
+library("stringr")
+library("RODBC")
+library("dplyr")
+library("ggplot2")
+library("class")
+library("ggmap")
+library("tidyr")
+library("aRpsDCA")
+library("ggExtra")
+library("gridExtra")
+library("RODBCext")
+library("MASS")
+library("ggpubr")
+library("grid")
+library("plyr")
+library("plotly")
+library("RColorBrewer")
+library("rpart")
+library("rattle")
+library("rpart.plot")
+library("xlsx")
+library("flexdashboard")
+library("DT")
+library("colorRamps")
+library("readxl")
+library("astsa")
+library("shiny")
+library("DataExplorer")
+library("class")
+library("e1071")
+library("dummies")
+library("randomForest")
+
+set.seed(1234)
+COLOR <- distinctColorPalette(12)
+
+write.excel <- function(x,row.names=FALSE,col.names=TRUE,...) {
+  write.table(x,"clipboard",sep="\t",row.names=row.names,col.names=col.names,...)
+}
+
+```
+
+Great, now we have some R packages and a few functions and color palettes that will help with our visualization efforts! Now that we can call on a variety of different functions, let's begin by loading in some of the government oil & gas data that has already been stored on a few of my local SQL servers. While I would love to showcase how I was able to scrape some of these datasets and load them into SQL, unfortunately due to a few of my personal company signed non-disclosures, this won't be possible. First, let's bring in some of the "drilling" or variables describing how the well was drilled into the subsurface before we take a look at a few other data pieces:
+
+```{r chunk2, echo = TRUE}
+
+# LOAD SQL DRILLING DATA ============================================================================
+
+# CONNECT TO LOCAL SERVER
+conn1 <-
+  odbcDriverConnect(
+    'driver=ODBC Driver 11 for SQL Server;server=server-prod18.be.local\\eifi_prod,3145;database=BentekEnergyDW; trusted_connection=yes'    
+  ) 
+
+# SQL QUERY BRINGING IN DRILLING VARIABLES
+# FILTER BASED ON STATES --> ND, CO, TX, NM
+# SPUD DATES AFTER JAN 2013
+
+DRILLING <- "SELECT StateName, CountyName, API, WellOrientation, SpudDate,
+ReleaseDate, DrillerName, PowerType, HPDRAW, ProposedTotalDepth, SurfaceLat, SurfaceLong,
+BottomHoleLat, BottomHoleLong
+  FROM [BentekEnergyDW].[GasProduction].[tblEnverusRigDataPLSDB]
+  WHERE StateCode IN ('ND','CO','TX','NM')
+  AND SpudDate >= '2013-01-01'
+  ORDER BY SpudDate DESC"
+DRILLING <- sqlExecute(conn1, DRILLING, fetch = TRUE)
+Drilling_Data <- DRILLING
+
+# CLEAN DRILLING DATA W/ INITIAL WRANGLING ============================================================================
+
+Drilling_Data$API <- gsub("-", "", Drilling_Data$API)
+Drilling_Data$API <- gsub("[^0-9.-]", "", Drilling_Data$API)
+Drilling_Data$API <- as.character(Drilling_Data$API)
+
+Drilling_Data$SpudDate <- as.Date(Drilling_Data$SpudDate)
+Drilling_Data$ReleaseDate <- as.Date(Drilling_Data$ReleaseDate)
+
+# WE NEED TO AGGREGATE HERE, AS SOME INDIVIIDUAL WELLS HAVE MULTIPLE RECORDS
+# WE ONLY NEED ONE VARIALBE PER WELL, ALSO IDENTIFIED BY THE API NUMBER
+DRILL_SPUD <- aggregate(Drilling_Data$SpudDate, by = list(Drilling_Data$API), FUN = max)
+DRILL_RELEASE <- aggregate(Drilling_Data$ReleaseDate, by = list(Drilling_Data$API), FUN = max)
+DRILL_SURFACE_LAT <- aggregate(Drilling_Data$SurfaceLat, by = list(Drilling_Data$API), FUN = max)
+DRILL_SURFACE_LONG <- aggregate(Drilling_Data$SurfaceLong, by = list(Drilling_Data$API), FUN = max)
+DRILL_BOTTOM_LAT <- aggregate(Drilling_Data$BottomHoleLat, by = list(Drilling_Data$API), FUN = max)
+DRILL_BOTTOM_LONG <- aggregate(Drilling_Data$BottomHoleLong, by = list(Drilling_Data$API), FUN = max)
+DRILL_ORIENTATION <- aggregate(Drilling_Data$WellOrientation, by = list(Drilling_Data$API), FUN = first)
+DRILL_PROPOSED_DEPTH <- aggregate(Drilling_Data$ProposedTotalDepth, by = list(Drilling_Data$API), FUN = max)
+DRILL_POWER_TYPE <- aggregate(Drilling_Data$PowerType, by = list(Drilling_Data$API), FUN = first)
+DRILL_DRILLER <- aggregate(Drilling_Data$DrillerName, by = list(Drilling_Data$API), FUN = first)
+DRILL_HPDRAW <- aggregate(Drilling_Data$HPDRAW, by = list(Drilling_Data$API), FUN = max)
+DRILL_STATE <- aggregate(Drilling_Data$StateName, by = list(Drilling_Data$API), FUN = first)
+
+# CREATE FINAL DATAFRAME FOR DRILLED DATA
+Drilling_Data <- data.frame(API = DRILL_SPUD$Group.1, SpudDate = DRILL_SPUD$x, ReleaseDate = DRILL_RELEASE$x,
+                            SurfaceLat = DRILL_SURFACE_LAT$x, SurfaceLong = DRILL_SURFACE_LONG$x, BottomLat = DRILL_BOTTOM_LAT$x,
+                            BottomLong = DRILL_BOTTOM_LONG$x, Orientation = DRILL_ORIENTATION$x,
+                            ProposedDepth = DRILL_PROPOSED_DEPTH$x, Power_Type = DRILL_POWER_TYPE$x, Driller_Name = DRILL_DRILLER$x, HP_Draw = DRILL_HPDRAW$x)
+
+# CLEAN UP UNWANTED DATA FRAMES, VECTORS, ETC
+rm(DRILL_SPUD, DRILL_RELEASE, DRILL_SURFACE_LAT, DRILL_SURFACE_LONG, DRILL_BOTTOM_LAT, DRILL_BOTTOM_LONG, DRILL_ORIENTATION, DRILL_PROPOSED_DEPTH,
+   DRILL_POWER_TYPE, DRILL_DRILLER, DRILL_HPDRAW, DRILL_STATE, DRILLING)
+
+summary(Drilling_Data)
+
+```
+
+Wow! A lot to dissect here, as we can see that in around 50 lines of code we have a polished dataframe of drilling data for the states of Texas, New Mexico, North Dakota, and Colorado that are ready to be utilized in our project and ideally help us better predict overall what category an oil and gas will fall into based on initial production (IP) rate. We now have around 114,397 individual well records that are uniquely defined by the "API" number column, while there are 11 descriptive variables that come with each record. While we haven't brought in the target prediction variable (well performance by IP rate), right away we can start to assume some variables like each well's proposed depth and potentially surface & bottom hole location data will be important in understanding and separating whether a well is investable or not. 
+
+While the drilling information is focused on the physical drilling of the well and its subsurface information, the "frac" data will focus on how the well was hydraulically fractured or "frac'ed", which is a commonly used term in media and industry. After an oil and gas well is drilled, the producer will inject the well with fluids to stimulate the well and hopefully improve the chance that the well produces a large amount of oil and has a relatively strong IP rate. Looking at the code below, we can bring in this frac database for wells and generate a similar data wrangling technique to get the final frac dataframe ready to be joined onto the drilling and production dataframes:
+
+```{r chunk3, echo = TRUE}
+
+# LOAD SQL FRAC FOCUS DATA ============================================================================
+
+# CONNECT TO LOCAL SERVER
+conn2 <-
+  odbcDriverConnect(
+    'Driver=ODBC Driver 11 for SQL Server;server=server-dev18.be.local;database=FracFocusRegistry; Uid=andrew_cooper; Pwd=aWll!&15lm; trusted_connection=yes'
+  ) 
+
+# SQL QUERY BRINGING IN DRILLING VARIABLES
+# FILTER BASED ON STATES --> ND, CO, TX, NM
+# JOB END DATES AFTER JAN 2013
+
+FRAC_FOCUS <- "SELECT [JobStartDate]
+      ,[JobEndDate]
+      ,[APINumber]
+      ,[TotalBaseWaterVolume]
+      ,[StateName]
+  FROM [FracFocusRegistry].[dbo].[RegistryUpload]
+  WHERE StateName IN ('North Dakota','ND','Texas','TX','New Mexico','NM','Colorado','CO')
+  AND JobEndDate >= '2013-01-01'
+  ORDER BY JobEndDate DESC"
+FRAC_FOCUS <- sqlExecute(conn2, FRAC_FOCUS, fetch = TRUE)
+FracFocus_Data <- FRAC_FOCUS
+
+# CLEAN FRAC DATA W/ INITIAL WRANGLING ============================================================================
+
+FracFocus_Data$APINumber <- as.character(FracFocus_Data$APINumber)
+FracFocus_Data$APINumber <- gsub("0000", "", FracFocus_Data$APINumber)
+FracFocus_Data$APINumber <- gsub("0001", "", FracFocus_Data$APINumber)
+FracFocus_Data$APINumber <- gsub("[^0-9.-]", "", FracFocus_Data$APINumber)
+FracFocus_Data$APINumber <- as.character(FracFocus_Data$APINumber)
+
+FracFocus_Data$JobStartDate <- as.Date(FracFocus_Data$JobStartDate)
+FracFocus_Data$JobEndDate <- as.Date(FracFocus_Data$JobEndDate)
+
+# WE NEED TO AGGREGATE HERE, AS SOME INDIVIIDUAL WELLS HAVE MULTIPLE RECORDS
+# WE ONLY NEED ONE VARIALBE PER WELL, ALSO IDENTIFIED BY THE API NUMBER
+FRAC_JOB_END <- aggregate(FracFocus_Data$JobEndDate, by = list(FracFocus_Data$APINumber), FUN = max)
+FRAC_JOB_START <- aggregate(FracFocus_Data$JobEndDate, by = list(FracFocus_Data$APINumber), FUN = max)
+FRAC_BASE_WATER_VOLUME <- aggregate(FracFocus_Data$TotalBaseWaterVolume, by = list(FracFocus_Data$APINumber), FUN = max)
+FRAC_STATE <- aggregate(FracFocus_Data$StateName, by = list(FracFocus_Data$APINumber), FUN = first)
+
+# CREATE FINAL DATAFRAME FOR FRAC DATA
+FracFocus_Data <- data.frame(API = FRAC_STATE$Group.1, JobStart_Date = FRAC_JOB_START$x, 
+                             JobEnd_Date = FRAC_JOB_END$x, BaseWater_Volume = FRAC_BASE_WATER_VOLUME$x)
+
+# CLEAN UP UNWANTED DATA FRAMES, VECTORS, ETC
+rm(FRAC_FOCUS, FRAC_JOB_END, FRAC_JOB_START, FRAC_BASE_WATER_VOLUME, FRAC_STATE)
+
+summary(FracFocus_Data)
+
+```
+
+Ok! So we have only 95,913 frac well records, noticeably lower than the output from the drilling data, as every individual well doesn't always have every accompanying record, as sometimes government published data fails to be populated fully. With our frac well records, we only have 3 variables describing each "frac", as we have information when the frac job started, ended, and how much fluid was injected into the well. These will be useful to bring alongside drilling information to better understand each well's overall IP performance. Next, let's wrap up the data acquisition by utilizing more SQL queries to bring in the most important well dataset, specifically the "production" information:
+
+```{r chunk4, echo = TRUE}
+
+# LOAD SQL PRODUCTION DATA ============================================================================
+
+# CONNECT TO LOCAL SERVER
+conn4 <-
+  odbcDriverConnect(
+    'driver=ODBC Driver 11 for SQL Server;server=prodsql01.be.local;database=GasProductionRawData;Uid=andrew_cooper; Pwd=aIll!&15lm; trusted_connection=yes'
+  )
+
+# SQL QUERY BRINGING IN DRILLING VARIABLES
+# FILTER BASED ON STATES --> ND, CO, TX, NM
+# FIRST PRODUCTION DATES AFTER JAN 2013
+
+PRODUCTION <- "SELECT PROD_DATE, LIQ, GAS, WATER, ProdType, BentekState, BentekCounty, ApiNo, Reservoir, DrillType, CurrOperName, TotalDepth, 
+    FirstProdDate, Latitude, Longitude, OilGravity FROM [GasProductionRawData].[dbo].[tblPden_Prod] t1
+    FULL OUTER JOIN [GasProduction].[GasProduction].[tblWells] t2 ON t1.ENTITY_ID = t2.EntityID
+    WHERE BentekState IN ('ND','TX','NM','CO')
+    AND FirstProdDate >= '2013-01-01'"
+PRODUCTION <- sqlExecute(conn4, PRODUCTION, fetch = TRUE)
+Production_Data <- PRODUCTION
+
+# CLEAN PRODUCTION DATA W/ INITIAL WRANGLING ============================================================================
+
+Production_Data$ApiNo <- as.character(Production_Data$ApiNo)
+Production_Data$ApiNo <- gsub("[^0-9.-]", "", Production_Data$ApiNo)
+Production_Data$ApiNo <- gsub("0000", "", Production_Data$ApiNo)
+Production_Data$ApiNo <- as.character(Production_Data$ApiNo)
+
+Production_Data$PROD_DATE <- as.Date(Production_Data$PROD_DATE)
+Production_Data$FirstProdDate <- as.Date(Production_Data$FirstProdDate)
+
+# WE NEED TO AGGREGATE HERE, AS SOME INDIVIIDUAL WELLS HAVE MULTIPLE RECORDS
+# WE ONLY NEED ONE VARIALBE PER WELL, ALSO IDENTIFIED BY THE API NUMBER
+PROD_LAT <- aggregate(Production_Data$Latitude, by = list(Production_Data$ApiNo), FUN = max)
+PROD_LONG <- aggregate(Production_Data$Longitude, by = list(Production_Data$ApiNo), FUN = max)
+PROD_GAS <- aggregate(Production_Data$GAS, by = list(Production_Data$ApiNo), FUN = max)
+PROD_OIL <- aggregate(Production_Data$LIQ, by = list(Production_Data$ApiNo), FUN = max)
+PROD_WATER <- aggregate(Production_Data$WATER, by = list(Production_Data$ApiNo), FUN = max)
+PROD_FIRSTPROD <- aggregate(Production_Data$FirstProdDate, by = list(Production_Data$ApiNo), FUN = max)
+PROD_PRODTYPE <- aggregate(Production_Data$ProdType, by = list(Production_Data$ApiNo), FUN = first)
+PROD_DRILLTYPE <- aggregate(Production_Data$DrillType, by = list(Production_Data$ApiNo), FUN = first)
+PROD_DEPTH <- aggregate(Production_Data$TotalDepth, by = list(Production_Data$ApiNo), FUN = max)
+PROD_OPERATOR <- aggregate(Production_Data$CurrOperName, by = list(Production_Data$ApiNo), FUN = first)
+PROD_RESERVOIR <- aggregate(Production_Data$Reservoir, by = list(Production_Data$ApiNo), FUN = max)
+PROD_OIL_GRAVITY <- aggregate(Production_Data$OilGravity, by = list(Production_Data$ApiNo), FUN = max)
+PROD_STATE <- aggregate(Production_Data$BentekState, by = list(Production_Data$ApiNo), FUN = first)
+
+# CREATE FINAL DATAFRAME FOR PRODUCTION DATA
+Production_Data <- data.frame(API = PROD_LAT$Group.1, Lat = PROD_LAT$x, Long = PROD_LONG$x, ProdState = PROD_STATE$x,
+                                      Gas_IP = PROD_GAS$x, Oil_IP = PROD_OIL$x, Water_IP = PROD_WATER$x,
+                                      FirstProdDate = PROD_FIRSTPROD$x, Prod_Type = PROD_PRODTYPE$x,
+                                      Drill_Type = PROD_DRILLTYPE$x, Depth = PROD_DEPTH$x, Operator = PROD_OPERATOR$x,
+                                      Reservoir = PROD_RESERVOIR$x, Oil_Gravity = PROD_OIL_GRAVITY$x)
+
+# CLEAN UP UNWANTED DATA FRAMES, VECTORS, ETC
+rm(PRODUCTION, PROD_LAT, PROD_LONG, PROD_GAS, PROD_OIL, PROD_WATER, PROD_FIRSTPROD, PROD_DRILLTYPE, PROD_PRODTYPE,
+   PROD_DEPTH, PROD_OPERATOR, PROD_RESERVOIR, PROD_OIL_GRAVITY, PROD_STATE)
+
+summary(Production_Data)
+
+####################################################################################################
+```
+
+Wrapping up this lengthy data acquisition section, it looks like we have around 115,650 individual well records that have needed production information for us to analyze which well's performed better than others, all depending on the oil IP rate output. So here we have 3 dataframes all sharing a common identification key seen as the "API" number meaning we can perform some sort of "join" function to connect all the possible drilling, frac, and production variables to their associated API number. This API number is a unique government issued ID number to make sure each well has a way of being uniquely identified across different states. We can join these dataframes together and this will be our final dataset that will be processed a little further and eventually used in our exploratory data analysis report:
+
+```{r chunk5, echo = TRUE}
+
+# LET'S MAKE SURE THIS API NUMBER IS NUMERIC, SO THE JOIN FUNCTION WILL WORK
+Drilling_Data$API <- as.numeric(Drilling_Data$API)
+FracFocus_Data$API <- as.numeric(FracFocus_Data$API)
+Production_Data$API <- as.numeric(Production_Data$API)
+
+# WE WANT TO SEE HOW MANY DRILLING & FRAC RECORDS CAN BE JOINED TO THE PRODUCTION DATASET, AS WE NEED TO USE PRODUCTION VARIABLES TO DEFINE THE PREDICTION OBSERVATION OF INTEREST
+FINAL_DATA_JOIN <- left_join(Production_Data, Drilling_Data, by = "API")
+FINAL_DATA_JOIN <- left_join(FINAL_DATA_JOIN, FracFocus_Data, by = "API")
+
+# FINAL STRUCTURE OF DATAFRAME
+str(FINAL_DATA_JOIN)
+
+```
+
+So to finalize our thoughts here, we now have a dataframe that has 115,650 wells with production data and relatively speaking 27 descriptive variables that accompany each API number. This data will be processed in our next blog section a little further, and we will be using some industry definitions provided by JP Morgan's Commodity Investment Group to define whether each well would be investable or not depending on its maximum observed monthly oil rate. The goal would be to utilize all these well's variables to separate the stronger performing wells based on the combination of different drilling, frac, and production information.
+
+Analysis {data-navmenu="Process-Data"}
+=====================================
+
+### Background 
+
+As shown in the introduction section, the IP rate is a the maximum observed monthly oil production reported by the well, and higher IP rates tend to correlate strongly to well's that produce more total oil over the lifetime of its duration. For this final processing, we need to define our target observation that we are trying to use machine learning algorithms to predict. First step will be to remove any data that doesn't have an oil IP rate, as we won't know what type of well performance category to expect without this information. Next, we define the predictor variable as "TargetWellPerformance", and these boundaries were provided to me by an outside industry expert who has experience defining which wells to invest capital in based on this IP category prediction theme: 
+
+```{r chunk6, echo = TRUE}
+
+# TARGET VARIABLE ANALYSIS ##############################################################################
+
+# IF OIL IP HAS NULL VALUE, STATE DIDN'T REPORT DATA, SO WE NEED TO REMOVE AS A MISSING TARGET VALUE
+FINAL_DATA_JOIN <- subset(FINAL_DATA_JOIN, is.na(Oil_IP) == F)
+FINAL_DATA_JOIN$TargetWellPerformance = NA
+
+# THESE DEFINITIONS WERE PROVIDED BY INDUSTRY CONTACT FOR HOW COMMODITY INVESTMENT FIRMS DETERMINE WHICH WELL HAS A POOR, AVERAGE, OR GOOD RETURN
+# IN THE OIL & GAS SECTOR, A "POOR" PERFORMING OIL WELL HAS INITIAL PRODUCTION OF <= 15,000 BARRELS
+# IN THE OIL & GAS SECTOR, A "GREAT" PERFORMING OIL WELL HAS INITIAL PRODUCTION OF > 15,000 BARRELS
+
+FINAL_DATA_JOIN_A <- subset(FINAL_DATA_JOIN, Oil_IP <= 15000)
+FINAL_DATA_JOIN_A$TargetWellPerformance = 0
+
+FINAL_DATA_JOIN_B <- subset(FINAL_DATA_JOIN, Oil_IP > 15000)
+FINAL_DATA_JOIN_B$TargetWellPerformance = 1
+
+FINAL_DATA_JOIN <- rbind(FINAL_DATA_JOIN_A, FINAL_DATA_JOIN_B)
+rm(FINAL_DATA_JOIN_A, FINAL_DATA_JOIN_B)
+
+summary(as.factor(FINAL_DATA_JOIN$TargetWellPerformance))
+
+```
+
+So we now have a relatively balanced amount of well's that we will look to split into a training and testing subset to predict which category each well falls into based on a combination of many the well's engineering combinations. This dataset will now be used as an input for our next blog post focused on exploratory data analysis where some of these variables will be analyzed in more depth.
+
+Analysis {data-navmenu="Explore-Data"}
+=====================================
+
+### Background 
+
+This next post will focus on diving into exploratory data analysis before starting to look at any sort of feature engineering. The goal of EDA is to understand some of the distributions, missing data counts, and other critical descriptive analytics that might be worth taking note of before model building. First, we will look at understanding the numeric variables distributions and missing counts, the categorical frequency counts, date time variable ranges, and finally plot some of the geographic information to make sure our data is confined inside Texas, North Dakota, New Mexico, and Colorado:
+
+```{r chunk7, echo = TRUE}
+
+# EXPLORATORY ANALYSIS ##############################################################################
+
+# NUMERIC VARIABLES
+Hmisc::describe(FINAL_DATA_JOIN$Water_IP)
+Hmisc::describe(FINAL_DATA_JOIN$Gas_IP)
+Hmisc::describe(FINAL_DATA_JOIN$Oil_Gravity)
+Hmisc::describe(FINAL_DATA_JOIN$Total_Fluid)
+Hmisc::describe(FINAL_DATA_JOIN$Total_Proppant)
+Hmisc::describe(FINAL_DATA_JOIN$BaseWater_Volume)
+Hmisc::describe(FINAL_DATA_JOIN$Depth)
+Hmisc::describe(FINAL_DATA_JOIN$ProposedDepth)
+Hmisc::describe(FINAL_DATA_JOIN$HP_Draw)
+
+# CHARACTER VARIABLES
+summary(as.factor(FINAL_DATA_JOIN$Prod_Type))
+summary(as.factor(FINAL_DATA_JOIN$Drill_Type))
+summary(as.factor(FINAL_DATA_JOIN$Operator))
+summary(as.factor(FINAL_DATA_JOIN$Reservoir))
+
+# DATE VARIABLES
+summary(FINAL_DATA_JOIN$FirstProdDate)
+summary(FINAL_DATA_JOIN$SpudDate)
+summary(FINAL_DATA_JOIN$ReleaseDate)
+summary(FINAL_DATA_JOIN$JobStart_Date)
+summary(FINAL_DATA_JOIN$JobEnd_Date)
+
+# GEOGRAPHIC VARIABLES
+FLARE_MAP <- leaflet(FINAL_DATA_JOIN) %>%
+  addProviderTiles(providers$OpenStreetMap, group = "Map-View") %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Satellite-View")
+
+FLARE_MAP = addCircleMarkers(FLARE_MAP, 
+                     lng = FINAL_DATA_JOIN$Long,
+                     lat = FINAL_DATA_JOIN$Lat,
+                     radius = 1, 
+                     stroke = FALSE, 
+                     fillOpacity = 1,
+                     color = "red")
+
+FLARE_MAP = addLayersControl(map = FLARE_MAP, baseGroups = c('Map-View','Satellite-View'))
+FLARE_MAP = addScaleBar(FLARE_MAP)
+FLARE_MAP = addMeasure(map = FLARE_MAP, position = "bottomleft")
+
+#create_report(FINAL_DATA_JOIN,y="TargetWellPerformance")
+
+```
+
+Great! So we got to see some of the statistics surrounding the numeric variables as well as some of the frequency counts of the categorical variables. The map to the right proves that all of the well data we have is indeed isolated to the states mentioned in the beginning of this data science project, which means no geographic outliers are present. Next, we were able to generate an EDA report and save it on a separate application (see EDA-Report.hmtl file), however let's discuss some key takeaways here (please open up the EDA-Report.html file to follow along):
+
+1) So again, basic statistics and overall analysis on total observations which is the product of the rows and columns of the final dataframe. Looks like the key point here is we have around 60,922 rows that have all associated drilling, frac, and production data, which we will note for final model building.
+2) Next, we can take a look at the current state of the data structure, as we have our 29 variables with 100,703 observations. Data structure types include: numeric, character, date, and integer.
+3) Here we can see that the most missing data comes from the frac data, as the frac job start and end date, along with corresponding fluid volume injected all are missing around 24%, which is still classified as ok in a real world data science problem with actual data.
+4) Here we can see that the most missing data comes from the frac data, as the frac job start and end date, along with corresponding fluid volume injected all are missing around 24%, which is still classified as ok in a real world data science problem with actual data.
+5) Taking a look at all the numeric variables relative distributions, there are likely some outliers that need to be identified and removed before modeling.
+6) Looks like we can just focus on WellClass of just OIL and GAS for this modeling problem, and disregard the other three groups.
+7) This quick look starts to give us an idea of which variables tend to generate wells in the poor, average, and great class. For example, NM and ND states along with HOR orientation seem to have a strong percentage of "great" well classes.
+8) We can wrap up our EDA analysis by taking a look at some Q-Q plots broken out by well performance class. Interesting to see the trends of depth and fluid volume against well's that tend to perform in the "great" category.
+
+Now that we've completed some basic EDA, we can move forward into the feature engineering section of the machine learning workflow where we can alter some of the variables, generate new ones, and finalize our data before we decide to move into model building.
+
+
+### Geographic QC
+
+```{r}
+FLARE_MAP
+```
+
+Analysis {data-navmenu="Feature-Engineering"}
+=====================================
+
+### Background 
+
+Phew, ok! Next step is one of the most important in the entire workflow, as most early career data scientists fail to try and derive new features that might improve the model accuracy and overall analysis. While creating features usually can be done with relatively simple data manipulation, sometimes having background on the subject matter provides an advantage in deciding how to generate secondary parameters. Let's begin with calculating a well's lateral length, or the distance between the surface location and bottom hole location measured at the final point of the well's steel casing:
+
+```{r chunk8A, echo = TRUE}
+# FEATURE OF INTEREST "1" - WELL LATERAL LENGTH
+FINAL_DATA_JOIN$long2 <- NISTdegTOradian(FINAL_DATA_JOIN$SurfaceLong)
+FINAL_DATA_JOIN$long1 <- NISTdegTOradian(FINAL_DATA_JOIN$BottomLong)
+FINAL_DATA_JOIN$lat2 <- NISTdegTOradian(FINAL_DATA_JOIN$SurfaceLat)
+FINAL_DATA_JOIN$lat1 <- NISTdegTOradian(FINAL_DATA_JOIN$BottomLat)
+FINAL_DATA_JOIN$dlon = FINAL_DATA_JOIN$long2 - FINAL_DATA_JOIN$long1 
+FINAL_DATA_JOIN$dlat = FINAL_DATA_JOIN$lat2 - FINAL_DATA_JOIN$lat1 
+FINAL_DATA_JOIN$a = (sin(FINAL_DATA_JOIN$dlat/2))^2 + cos(FINAL_DATA_JOIN$lat1) * cos(FINAL_DATA_JOIN$lat2) * (sin(FINAL_DATA_JOIN$dlon/2))^2 
+FINAL_DATA_JOIN$c = 2 * atan2(sqrt(FINAL_DATA_JOIN$a), sqrt(1-FINAL_DATA_JOIN$a)) 
+FINAL_DATA_JOIN$Estimated_Lateral = 6371 * FINAL_DATA_JOIN$c
+FINAL_DATA_JOIN$Estimated_Lateral = 3280.84 * FINAL_DATA_JOIN$Estimated_Lateral
+FINAL_DATA_JOIN <- subset(FINAL_DATA_JOIN, select = -c(a,c,dlat,dlon,long2,long1,lat2,lat1))
+```
+
+These equations are built on geometric principles and the relationship between the surface lat | long against the well's corresponding bottom hole lat | long measurement. The idea here is the longer the well's lateral length the more contact the well will have with the rock and have a higher chance of falling into the great category. Let's continue on with calculating the next feature which is known as the water to oil (WOR) ratio:
+
+```{r chunk8B, echo = TRUE}
+# FEATURE OF INTEREST "2" - WATER TO OIL (WOR) RATIO
+for(i in 1:nrow(FINAL_DATA_JOIN)){
+  FINAL_DATA_JOIN$WOR[i] = FINAL_DATA_JOIN$Water_IP[i] / FINAL_DATA_JOIN$Oil_IP[i]
+}
+```
+
+While I don't have an idea on how this ratio will affect the well's classification, I think this ratio of water produced against the oil will be interesting to have in the model building dataset. Next, we will do the same ratio feature engineering, just using gas instead of water for a gas to oil (GOR) ratio:
+
+```{r chunk8C, echo = TRUE}
+# FEATURE OF INTEREST "3" - GAS TO OIL (GOR) RATIO
+for(i in 1:nrow(FINAL_DATA_JOIN)){
+  FINAL_DATA_JOIN$GOR[i] = FINAL_DATA_JOIN$Gas_IP[i] / FINAL_DATA_JOIN$Oil_IP[i]
+}
+```
+
+Ok so we have both ratios now with water and gas! Next, we will look at how long it took for the well to be physical drilled by subtracting spud date from the release data and using a difftime function. This numeric number of "days to drill" might correlate to well classification in an unknown way:
+
+```{r chunk8D, echo = TRUE}
+# FEATURE OF INTEREST "4" - DRILL DAYS
+FINAL_DATA_JOIN$DrillDays <- as.numeric(difftime(FINAL_DATA_JOIN$ReleaseDate , FINAL_DATA_JOIN$SpudDate , units = c("days")))
+```
+
+Next, we will calculate the drill to production day timing and call this the drill to production day count, as wells that took longer to be brought into production might have some sort of engineering issues affecting its overall performance:
+
+```{r chunk8E, echo = TRUE}
+# FEATURE OF INTEREST "5" - DRILL TO PROD TIME
+FINAL_DATA_JOIN$DrilltoProdDays <- as.numeric(difftime(FINAL_DATA_JOIN$FirstProdDate , FINAL_DATA_JOIN$SpudDate , units = c("days")))
+```
+
+Finally, we will take a concept that has been a new trend to highlight in analyzing oil and gas well performance, which is known as frac intensity. This measurement looks at how much total volume of fluids are injected into the well on a per foot lateral length basis. So here, we will take the total volume of fluid and divide it into the calculated lateral length:
+
+```{r chunk8G, echo = TRUE}
+# FEATURE OF INTEREST "7" - FRAC INTENSITY
+for(i in 1:nrow(FINAL_DATA_JOIN)){
+  FINAL_DATA_JOIN$FracIntensity[i] = FINAL_DATA_JOIN$BaseWater_Volume[i] / FINAL_DATA_JOIN$Estimated_Lateral[i]
+}
+```
+
+Let's remove the oil initial production rate from the final database that will be used in model building, as this would be "cheating" as this variable was used to classify each well's performance based on the industry source specifications.
+
+```{r chunk8H, echo = TRUE}
+# DROP OIL_IP AS CATEGORY ALREADY DEFINED, ALSO DROP DATES AS FEATURE ENGINEERING ALLOWS DATE TIME VARIABLES TO BE DROPPED FOR MODEL BUILDING
+FINAL_DATA_JOIN <- FINAL_DATA_JOIN[-c(1,6,8,15,16,26,27)]
+```
+
+Ok, so lot's of different feature engineering done here and the goal would be a few of these variables correlate well to the well's class to help us separate out each well based on its defining variables. For the next blog section we will get into model building!
+
+Analysis {data-navmenu="Modeling"}
+=====================================
+
+### Background 
+
+Now that we have an idea of what our goal and prediction problem is, let's take a look at the first step of any data science problem which is obtaining data. Before we take a look at any data, let's bring in the necessary packages and functions that will be useful throughout the workflow:
+
+```{r chunk9, echo = TRUE}
+
+# TEST VS SAMPLE SPLIT ###############################################################################
+
+is.na(FINAL_DATA_JOIN) <- sapply(FINAL_DATA_JOIN, is.infinite)
+FINAL_DATA_JOIN <- FINAL_DATA_JOIN[!(rowSums(is.na(FINAL_DATA_JOIN))),]
+
+FINAL_DATA_JOIN$TargetWellPerformance <- as.factor(FINAL_DATA_JOIN$TargetWellPerformance)
+
+FINAL_DATA_JOIN$ProdState <- as.factor(FINAL_DATA_JOIN$ProdState)
+FINAL_DATA_JOIN$Drill_Type <- as.factor(FINAL_DATA_JOIN$Drill_Type)
+FINAL_DATA_JOIN$Power_Type <- as.factor(FINAL_DATA_JOIN$Power_Type)
+
+dt = sort(sample(nrow(FINAL_DATA_JOIN), nrow(FINAL_DATA_JOIN)*.7))
+TRAIN <- FINAL_DATA_JOIN[dt,]
+TEST <- FINAL_DATA_JOIN[-dt,]
+
+# MODEL BUILD ###############################################################################
+
+# DIFFERENT CLASSIFICATION METHODS
+
+MODEL_1 <- glm(TargetWellPerformance ~ Depth + ProdState + Drill_Type + Oil_Gravity
+               + Power_Type + BaseWater_Volume + Estimated_Lateral +
+                 WOR + GOR + DrillDays + DrilltoProdDays + FracIntensity, data = TRAIN, family = "binomial")
+MODEL_2 <- rpart(TargetWellPerformance ~ Depth + ProdState + Drill_Type + Oil_Gravity
+               + Power_Type + BaseWater_Volume + Estimated_Lateral +
+                 WOR + GOR + DrillDays + DrilltoProdDays + FracIntensity, data = TRAIN, method = "class")
+MODEL_3 <- naive_bayes(TargetWellPerformance ~ Depth + ProdState + Drill_Type + Oil_Gravity
+               + Power_Type + BaseWater_Volume + Estimated_Lateral +
+                 WOR + GOR + DrillDays + DrilltoProdDays + FracIntensity, data = TRAIN, usekernel = T) 
+
+summary(MODEL_1)
+summary(MODEL_2)
+summary(MODEL_3)
+
+FINAL_MODEL <- glm(TargetWellPerformance ~ Depth + ProdState + Oil_Gravity
+               + BaseWater_Volume + Estimated_Lateral +
+                 WOR + GOR + DrillDays + DrilltoProdDays + FracIntensity, data = TRAIN, family = "binomial")
+  
+  
+```
+
+Analysis {data-navmenu="Final-Results"}
+=====================================
+
+### Background 
+
+Now that we have an idea of what our goal and prediction problem is, let's take a look at the first step of any data science problem which is obtaining data. Before we take a look at any data, let's bring in the necessary packages and functions that will be useful throughout the workflow:
+
+```{r chunk10, echo = TRUE}
+p1 = predict(MODEL_1, TEST)
+p1 = as.numeric(p1)
+p1_results <- ifelse(p1 > 0.5,1,0)
+
+ACTUALS <- as.factor(TEST$TargetWellPerformance)
+MODEL_1_PREDICT <- as.factor(p1_results)
+
+#Creating confusion matrix
+RESULTS_1 <- caret::confusionMatrix(MODEL_1_PREDICT, ACTUALS)
+RESULTS_1
+
+```
